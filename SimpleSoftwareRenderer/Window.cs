@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿using System.Runtime.InteropServices;
 using Vanara.PInvoke;
 
 namespace SimpleSoftwareRenderer;
@@ -10,13 +10,18 @@ internal class Window : IDisposable
     private readonly Kernel32.SafeHINSTANCE hInstance;
     private readonly Gdi32.SafeHDC frameDeviceContext;
     private readonly User32.SafeHWND windowHandle;
+    private readonly GCHandle WindowProcPin;
 
-    private bool quit = false;
     private Frame frame;
     private Gdi32.BITMAPINFO frameBitmapInfo;
-    private Gdi32.SafeHBITMAP frameBitmap;
+    private Gdi32.SafeHBITMAP frameBitmap = default!;
 
-    public Window(int xPosition, int yPosition, int width, int height, string title)
+    public bool Quit { get; private set; } = false;
+
+    public (int width, int height) FrameSize => (frame.Width, frame.Height);
+
+    public Window(string title, int xPosition, int yPosition,
+        int width, int height)
     {
         hInstance = Kernel32.GetModuleHandle(null);
         frameDeviceContext = Gdi32.CreateCompatibleDC(nint.Zero);
@@ -31,46 +36,91 @@ internal class Window : IDisposable
             bmiHeader = bmiHeader
         };
 
+        User32.WindowProc windowProcDelegate = WindowProcessMessage;
+        WindowProcPin = GCHandle.Alloc(windowProcDelegate);
+
         var windowClass = new User32.WNDCLASS
         {
             lpszClassName = className,
             hInstance = hInstance,
-            lpfnWndProc = WindowProcessMessage
+            hIcon = WindowClass.StdAppIcon,
+            hCursor = WindowClass.StdArrowCursor,
+            lpfnWndProc = windowProcDelegate
         };
 
         User32.RegisterClass(windowClass);
 
-        windowHandle = User32.CreateWindow(className, title, User32.WindowStyles.WS_OVERLAPPEDWINDOW | User32.WindowStyles.WS_VISIBLE, xPosition, yPosition, width, height, nint.Zero, nint.Zero, hInstance, nint.Zero);
+        var style = User32.WindowStyles.WS_CAPTION
+            | User32.WindowStyles.WS_SYSMENU
+            | User32.WindowStyles.WS_VISIBLE;
+
+        var rect = RECT.Empty;
+        rect.Left = xPosition;
+        rect.Top = yPosition;
+        rect.Width = width;
+        rect.Height = height;
+
+        User32.AdjustWindowRect(ref rect, style, false);
+
+        windowHandle = User32.CreateWindow(className, title,
+            style,
+            rect.left, rect.top, rect.Width, rect.Height,
+            nint.Zero, nint.Zero, hInstance, nint.Zero);
 
         User32.ShowWindow(windowHandle, ShowWindowCommand.SW_SHOWDEFAULT);
     }
 
     public void Run()
     {
-        uint p = 0;
-
-        while (!quit)
+        while (User32.PeekMessage(out MSG message, nint.Zero, 0u, 0u, User32.PM.PM_REMOVE))
         {
-            while (User32.PeekMessage(out MSG message, nint.Zero, 0u, 0u, User32.PM.PM_REMOVE))
-            {
-                User32.TranslateMessage(in message);
-                User32.DispatchMessage(in message);
-            }
-
-            unsafe
-            {
-                var pixels = new Span<uint>(frame.Pixels.ToPointer(), frame.Width * frame.Height);
-
-                for (var i = 0; i < 10; i++)
-                {
-                    pixels[(int)(p++) % (frame.Width * frame.Height)] = (uint)Random.Shared.Next();
-                    pixels[(int)(uint)Random.Shared.Next() % (frame.Width * frame.Height)] = (uint)0;
-                }
-            }
-
-            User32.InvalidateRect(windowHandle, null, false);
-            User32.UpdateWindow(windowHandle);
+            User32.TranslateMessage(in message);
+            User32.DispatchMessage(in message);
         }
+    }
+
+    private uint p = 0;
+
+    public void Draw(byte[,,] pixelsValues)
+    {
+        if (pixelsValues.GetLength(0) != frame.Height
+            || pixelsValues.GetLength(1) != frame.Width
+            || pixelsValues.GetLength(2) != 3)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        Span<uint> pixels;
+
+        unsafe
+        {
+            pixels = new Span<uint>(frame.Pixels.ToPointer(), frame.Width * frame.Height);
+        }
+
+        for (var h = 0; h < frame.Height; h++)
+        {
+            for (var w = 0; w < frame.Width; w++)
+            {
+                uint pixelValue = 0;
+
+                for (var i = 0; i < 3; i++)
+                {
+                    pixelValue <<= 8;
+                    pixelValue |= pixelsValues[h, w, i];
+                }
+
+                pixels[h * frame.Width + w] = pixelValue;
+            }
+        }
+
+        //for (var i = 0; i < 1; i++)
+        //{
+        //    pixels[(int)(p++) % (frame.Width * frame.Height)] = (uint)Random.Shared.Next();
+        //    pixels[(int)(uint)Random.Shared.Next() % (frame.Width * frame.Height)] = (uint)0;
+        //}
+
+        User32.InvalidateRect(windowHandle, null, false);
+        User32.UpdateWindow(windowHandle);
     }
 
     private nint WindowProcessMessage(HWND hwnd, uint msg, nint wParam, nint lParam)
@@ -79,7 +129,7 @@ internal class Window : IDisposable
         {
             case User32.WindowMessage.WM_QUIT:
             case User32.WindowMessage.WM_DESTROY:
-                quit = true;
+                Quit = true;
                 break;
 
             case User32.WindowMessage.WM_PAINT:
@@ -155,6 +205,7 @@ internal class Window : IDisposable
 
         // free unmanaged resources (unmanaged objects) and override a finalizer below.
         User32.UnregisterClass(className, hInstance);
+        WindowProcPin.Free();
 
         // set large fields to null.
 
