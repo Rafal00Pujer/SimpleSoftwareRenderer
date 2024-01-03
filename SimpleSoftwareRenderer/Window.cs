@@ -113,12 +113,6 @@ internal class Window : IDisposable
             }
         }
 
-        //for (var i = 0; i < 1; i++)
-        //{
-        //    pixels[(int)(p++) % (frame.Width * frame.Height)] = (uint)Random.Shared.Next();
-        //    pixels[(int)(uint)Random.Shared.Next() % (frame.Width * frame.Height)] = (uint)0;
-        //}
-
         User32.InvalidateRect(windowHandle, null, false);
         User32.UpdateWindow(windowHandle);
     }
