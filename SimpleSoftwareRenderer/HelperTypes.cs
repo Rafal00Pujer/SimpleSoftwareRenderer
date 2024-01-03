@@ -21,6 +21,17 @@ struct MyColor()
 
     public static MyColor operator *(byte intensity, MyColor color) => color * intensity;
 
+    public static MyColor operator *(MyColor color, float intensity)
+    {
+        color.R = (byte)Math.Clamp(color.R * intensity, 0, 255);
+        color.G = (byte)Math.Clamp(color.G * intensity, 0, 255);
+        color.B = (byte)Math.Clamp(color.B * intensity, 0, 255);
+
+        return color;
+    }
+
+    public static MyColor operator *(float intensity, MyColor color) => color * intensity;
+
     public static MyColor operator +(MyColor colorA, MyColor colorB)
     {
         var color = new MyColor

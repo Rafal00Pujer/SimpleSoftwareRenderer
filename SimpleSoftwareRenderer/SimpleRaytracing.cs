@@ -1,16 +1,14 @@
-﻿using System.Drawing;
-using System.Numerics;
-using static Vanara.PInvoke.Kernel32;
+﻿using System.Numerics;
 
 namespace SimpleSoftwareRenderer;
 
-internal class SimpleRaytracing(IReadOnlyList<Sphere> scene, byte[,,] screenPixels)
+internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
 {
     private const float ViewportWidth = 1.0f;
     private const float ViewportHeight = 1.0f;
     private const float CameraToViewport = 1.0f;
 
-    private readonly IReadOnlyList<Sphere> _scene = scene;
+    private readonly Scene _scene = scene;
     private readonly byte[,,] _screenPixels = screenPixels;
 
     private readonly int ScreenWidth = screenPixels.GetLength(1);
@@ -43,7 +41,7 @@ internal class SimpleRaytracing(IReadOnlyList<Sphere> scene, byte[,,] screenPixe
         var closestT = float.PositiveInfinity;
         Sphere? closestSphere = null;
 
-        foreach (var sphere in scene)
+        foreach (var sphere in _scene.Spheres)
         {
             var (t1, t2) = IntersectRaySphere(origin, direction, sphere);
 
@@ -55,20 +53,25 @@ internal class SimpleRaytracing(IReadOnlyList<Sphere> scene, byte[,,] screenPixe
 
             if (tMin < t2 && t2 < tMax && t2 < closestT)
             {
-                closestT = t1;
+                closestT = t2;
                 closestSphere = sphere;
             }
         }
 
-        if (closestSphere is not null)
+        if (closestSphere is null)
         {
-            return closestSphere.Color;
+            return new MyColor { R = 255, G = 255, B = 255 };
         }
 
-        return new MyColor { R = 255, G = 255, B = 255 };
+        var intersection = origin + closestT * direction; // Compute intersection
+
+        var surfaceNormal = intersection - closestSphere.Center; // Compute sphere normal at intersection
+        surfaceNormal = Vector3.Normalize(surfaceNormal);
+
+        return closestSphere.Color * ComputeLighting(intersection, surfaceNormal);
     }
 
-    private (float t1, float t2) IntersectRaySphere(Vector3 origin, Vector3 direction, Sphere sphere)
+    private static (float t1, float t2) IntersectRaySphere(Vector3 origin, Vector3 direction, Sphere sphere)
     {
         var r = sphere.Radius;
         var co = origin - sphere.Center;
@@ -90,6 +93,40 @@ internal class SimpleRaytracing(IReadOnlyList<Sphere> scene, byte[,,] screenPixe
         return (t1, t2);
     }
 
+    private float ComputeLighting(Vector3 intersection, Vector3 surfaceNormal)
+    {
+        var intensity = 0.0f;
+
+        foreach (var light in _scene.Lights)
+        {
+            if (light.Type == LightType.Ambient)
+            {
+                intensity += light.Intensity;
+                continue;
+            }
+
+            Vector3 l;
+
+            if (light.Type == LightType.Point)
+            {
+                l = light.Position!.Value - intersection;
+            }
+            else
+            {
+                l = light.Direction!.Value;
+            }
+
+            var nDotL = Vector3.Dot(surfaceNormal, l);
+
+            if (nDotL > 0)
+            {
+                intensity += light.Intensity * nDotL / (surfaceNormal.Length() * intersection.Length());
+            }
+        }
+
+        return intensity;
+    }
+
     private void PutPixel(int x, int y, MyColor color)
     {
         var halfHeight = ScreenHeight / 2;
@@ -107,7 +144,7 @@ internal class SimpleRaytracing(IReadOnlyList<Sphere> scene, byte[,,] screenPixe
         PopulatePixel(color, sX, sY, _screenPixels);
     }
 
-    private void PopulatePixel(MyColor color, int x, int y, byte[,,] pixels)
+    private static void PopulatePixel(MyColor color, int x, int y, byte[,,] pixels)
     {
         pixels[y, x, 0] = color.R;
         pixels[y, x, 1] = color.G;
