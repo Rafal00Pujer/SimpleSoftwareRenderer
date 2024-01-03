@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace SimpleSoftwareRenderer;
 
@@ -68,7 +69,7 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
         var surfaceNormal = intersection - closestSphere.Center; // Compute sphere normal at intersection
         surfaceNormal = Vector3.Normalize(surfaceNormal);
 
-        return closestSphere.Color * ComputeLighting(intersection, surfaceNormal);
+        return closestSphere.Color * ComputeLighting(intersection, surfaceNormal, direction * -1.0f, closestSphere.Specular);
     }
 
     private static (float t1, float t2) IntersectRaySphere(Vector3 origin, Vector3 direction, Sphere sphere)
@@ -93,15 +94,15 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
         return (t1, t2);
     }
 
-    private float ComputeLighting(Vector3 intersection, Vector3 surfaceNormal)
+    private float ComputeLighting(Vector3 p, Vector3 n, Vector3 v, float s)
     {
-        var intensity = 0.0f;
+        var i = 0.0f;
 
         foreach (var light in _scene.Lights)
         {
             if (light.Type == LightType.Ambient)
             {
-                intensity += light.Intensity;
+                i += light.Intensity;
                 continue;
             }
 
@@ -109,22 +110,35 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
 
             if (light.Type == LightType.Point)
             {
-                l = light.Position!.Value - intersection;
+                l = light.Position!.Value - p;
             }
             else
             {
                 l = light.Direction!.Value;
             }
 
-            var nDotL = Vector3.Dot(surfaceNormal, l);
-
+            // Diffuse
+            var nDotL = Vector3.Dot(n, l);
             if (nDotL > 0)
             {
-                intensity += light.Intensity * nDotL / (surfaceNormal.Length() * intersection.Length());
+                i += light.Intensity * nDotL / (n.Length() * l.Length());
+            }
+
+            // Specular
+            if (s != -1.0f)
+            {
+                var r = 2 * n * Vector3.Dot(n, l) - l;
+                var rDotV = Vector3.Dot(r, v);
+
+                if (rDotV > 0)
+                {
+                    var powBase = rDotV / (r.Length() * v.Length());
+                    i += light.Intensity * (float)Math.Pow(powBase, s);
+                }
             }
         }
 
-        return intensity;
+        return i;
     }
 
     private void PutPixel(int x, int y, MyColor color)

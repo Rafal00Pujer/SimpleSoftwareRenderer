@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace SimpleSoftwareRenderer;
+﻿namespace SimpleSoftwareRenderer;
 
 struct MyColor()
 {
@@ -43,13 +41,4 @@ struct MyColor()
 
         return color;
     }
-}
-
-class Sphere()
-{
-    public Vector3 Center { get; set; }
-
-    public float Radius { get; set; }
-
-    public MyColor Color { get; set; }
 }
