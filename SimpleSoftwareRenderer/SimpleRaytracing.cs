@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using System.Runtime.Intrinsics;
 
 namespace SimpleSoftwareRenderer;
 
@@ -12,20 +11,20 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
     private readonly Scene _scene = scene;
     private readonly byte[,,] _screenPixels = screenPixels;
 
-    private readonly int ScreenWidth = screenPixels.GetLength(1);
-    private readonly int ScreenHeight = screenPixels.GetLength(0);
+    private readonly int _screenWidth = screenPixels.GetLength(1);
+    private readonly int _screenHeight = screenPixels.GetLength(0);
 
-    private readonly Vector3 CameraPosition = Vector3.Zero;
+    private readonly Vector3 _cameraPosition = Vector3.Zero;
 
     public void RenderScene()
     {
-        for (var x = -ScreenWidth / 2; x < ScreenWidth / 2; x++)
+        for (var x = -_screenWidth / 2; x < _screenWidth / 2; x++)
         {
-            for (var y = -ScreenHeight / 2; y < ScreenHeight / 2; y++)
+            for (var y = -_screenHeight / 2; y < _screenHeight / 2; y++)
             {
                 var direction = CanvasToViewport(x, y);
 
-                var color = TraceRay(CameraPosition, direction, 1.0f, float.PositiveInfinity);
+                var color = TraceRay(_cameraPosition, direction, 1.0f, float.PositiveInfinity, 3);
                 PutPixel(x, y, color);
 
             }
@@ -34,10 +33,39 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
 
     private Vector3 CanvasToViewport(int x, int y)
     {
-        return new Vector3(x * ViewportWidth / ScreenWidth, y * ViewportHeight / ScreenHeight, CameraToViewport);
+        return new Vector3(x * ViewportWidth / _screenWidth, y * ViewportHeight / _screenHeight, CameraToViewport);
     }
 
-    private MyColor TraceRay(Vector3 origin, Vector3 direction, float tMin, float tMax)
+    private MyColor TraceRay(Vector3 O, Vector3 D, float tMin, float tMax, int recursionDepth)
+    {
+        var (closestSphere, closestT) = ClosestIntersection(O, D, tMin, tMax);
+
+        if (closestSphere is null)
+        {
+            return new MyColor { R = 0, G = 0, B = 0 };
+        }
+
+        var P = O + closestT * D; // Compute intersection
+        var N = P - closestSphere.Center; // Compute sphere normal at intersection
+        N = Vector3.Normalize(N);
+
+        MyColor localColor = closestSphere.Color * ComputeLighting(P, N, D * -1.0f, closestSphere.Specular);
+
+        // If we hit the recursion limit or the object is not reflective, we're done
+        var r = closestSphere.Reflective;
+        if (recursionDepth <= 0 || r <= 0)
+        {
+            return localColor;
+        }
+
+        // Compute the reflected color
+        var R = ReflectRay(D * -1.0f, N);
+        var reflectedColor = TraceRay(P, R, float.Epsilon, float.PositiveInfinity, recursionDepth - 1);
+
+        return localColor * (1.0f - r) + reflectedColor * r;
+    }
+
+    private (Sphere? closestShpere, float closestT) ClosestIntersection(Vector3 origin, Vector3 direction, float tMin, float tMax)
     {
         var closestT = float.PositiveInfinity;
         Sphere? closestSphere = null;
@@ -59,27 +87,17 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
             }
         }
 
-        if (closestSphere is null)
-        {
-            return new MyColor { R = 255, G = 255, B = 255 };
-        }
-
-        var intersection = origin + closestT * direction; // Compute intersection
-
-        var surfaceNormal = intersection - closestSphere.Center; // Compute sphere normal at intersection
-        surfaceNormal = Vector3.Normalize(surfaceNormal);
-
-        return closestSphere.Color * ComputeLighting(intersection, surfaceNormal, direction * -1.0f, closestSphere.Specular);
+        return (closestSphere, closestT);
     }
 
     private static (float t1, float t2) IntersectRaySphere(Vector3 origin, Vector3 direction, Sphere sphere)
     {
-        var r = sphere.Radius;
-        var co = origin - sphere.Center;
+        double r = sphere.Radius;
+        var oc = origin - sphere.Center;
 
-        var a = Vector3.Dot(direction, direction);
-        var b = 2 * Vector3.Dot(co, direction);
-        var c = Vector3.Dot(co, co) - r * r;
+        double a = Vector3.Dot(direction, direction);
+        double b = 2.0 * Vector3.Dot(oc, direction);
+        double c = Vector3.Dot(oc, oc) - r * r;
 
         var discriminant = b * b - 4 * a * c;
 
@@ -88,10 +106,10 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
             return (float.PositiveInfinity, float.PositiveInfinity);
         }
 
-        float t1 = (-b + (float)Math.Sqrt(discriminant)) / (2 * a);
-        float t2 = (-b - (float)Math.Sqrt(discriminant)) / (2 * a);
+        var t1 = (-b + Math.Sqrt(discriminant)) / (2.0 * a);
+        var t2 = (-b - Math.Sqrt(discriminant)) / (2.0 * a);
 
-        return (t1, t2);
+        return ((float)t1, (float)t2);
     }
 
     private float ComputeLighting(Vector3 p, Vector3 n, Vector3 v, float s)
@@ -107,14 +125,24 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
             }
 
             Vector3 l;
+            float tMax;
 
             if (light.Type == LightType.Point)
             {
                 l = light.Position!.Value - p;
+                tMax = 1.0f;
             }
             else
             {
                 l = light.Direction!.Value;
+                tMax = float.PositiveInfinity;
+            }
+
+            // Shadow check
+            var (shadowSphere, shadowT) = ClosestIntersection(p, l, float.Epsilon, tMax);
+            if (shadowSphere is not null)
+            {
+                continue;
             }
 
             // Diffuse
@@ -127,7 +155,7 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
             // Specular
             if (s != -1.0f)
             {
-                var r = 2 * n * Vector3.Dot(n, l) - l;
+                var r = ReflectRay(l, n);
                 var rDotV = Vector3.Dot(r, v);
 
                 if (rDotV > 0)
@@ -141,16 +169,21 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
         return i;
     }
 
+    private static Vector3 ReflectRay(Vector3 r, Vector3 n)
+    {
+        return 2 * n * Vector3.Dot(n, r) - r;
+    }
+
     private void PutPixel(int x, int y, MyColor color)
     {
-        var halfHeight = ScreenHeight / 2;
-        var halfWidth = ScreenWidth / 2;
+        var halfHeight = _screenHeight / 2;
+        var halfWidth = _screenWidth / 2;
 
         var sX = halfWidth + x;
         var sY = halfHeight + y;
 
-        if (sX < 0 || sX > ScreenWidth
-            || sY < 0 || sY > ScreenHeight)
+        if (sX < 0 || sX > _screenWidth
+            || sY < 0 || sY > _screenHeight)
         {
             return;
         }
@@ -160,8 +193,8 @@ internal class SimpleRaytracing(Scene scene, byte[,,] screenPixels)
 
     private static void PopulatePixel(MyColor color, int x, int y, byte[,,] pixels)
     {
-        pixels[y, x, 0] = color.R;
-        pixels[y, x, 1] = color.G;
-        pixels[y, x, 2] = color.B;
+        pixels[y, x, 0] = (byte)Math.Clamp(color.R, 0.0, 255.0);
+        pixels[y, x, 1] = (byte)Math.Clamp(color.G, 0.0, 255.0);
+        pixels[y, x, 2] = (byte)Math.Clamp(color.B, 0.0, 255.0);
     }
 }

@@ -11,4 +11,6 @@ class Sphere()
     public MyColor Color { get; set; }
 
     public float Specular { get; set; }
+
+    public float Reflective { get; set; }
 }

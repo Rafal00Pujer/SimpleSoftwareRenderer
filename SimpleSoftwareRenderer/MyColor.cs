@@ -2,28 +2,17 @@
 
 struct MyColor()
 {
-    public byte R { get; set; }
+    public float R { get; set; }
 
-    public byte G { get; set; }
+    public float G { get; set; }
 
-    public byte B { get; set; }
-
-    public static MyColor operator *(MyColor color, byte intensity)
-    {
-        color.R = (byte)Math.Clamp(color.R * intensity, 0, 255);
-        color.G = (byte)Math.Clamp(color.G * intensity, 0, 255);
-        color.B = (byte)Math.Clamp(color.B * intensity, 0, 255);
-
-        return color;
-    }
-
-    public static MyColor operator *(byte intensity, MyColor color) => color * intensity;
+    public float B { get; set; }
 
     public static MyColor operator *(MyColor color, float intensity)
     {
-        color.R = (byte)Math.Clamp(color.R * intensity, 0, 255);
-        color.G = (byte)Math.Clamp(color.G * intensity, 0, 255);
-        color.B = (byte)Math.Clamp(color.B * intensity, 0, 255);
+        color.R *= intensity;
+        color.G *= intensity;
+        color.B *= intensity;
 
         return color;
     }
@@ -34,9 +23,9 @@ struct MyColor()
     {
         var color = new MyColor
         {
-            R = (byte)Math.Clamp(colorA.R + colorB.R, 0, 255),
-            G = (byte)Math.Clamp(colorA.G + colorB.G, 0, 255),
-            B = (byte)Math.Clamp(colorA.B + colorB.B, 0, 255)
+            R = colorA.R + colorB.R,
+            G = colorA.G + colorB.G,
+            B = colorA.B + colorB.B
         };
 
         return color;
