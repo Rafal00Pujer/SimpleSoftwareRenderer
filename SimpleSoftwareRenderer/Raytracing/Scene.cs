@@ -1,4 +1,4 @@
-﻿namespace SimpleSoftwareRenderer;
+﻿namespace SimpleSoftwareRenderer.Raytracing;
 
 internal class Scene
 {

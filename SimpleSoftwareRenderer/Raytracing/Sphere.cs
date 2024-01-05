@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace SimpleSoftwareRenderer;
+namespace SimpleSoftwareRenderer.Raytracing;
 
 class Sphere()
 {
@@ -8,7 +8,7 @@ class Sphere()
 
     public float Radius { get; set; }
 
-    public MyColor Color { get; set; }
+    public Color Color { get; set; }
 
     public float Specular { get; set; }
 

@@ -1,6 +1,6 @@
 ﻿namespace SimpleSoftwareRenderer;
 
-struct MyColor()
+struct Color()
 {
     public float R { get; set; }
 
@@ -8,7 +8,7 @@ struct MyColor()
 
     public float B { get; set; }
 
-    public static MyColor operator *(MyColor color, float intensity)
+    public static Color operator *(Color color, float intensity)
     {
         color.R *= intensity;
         color.G *= intensity;
@@ -17,11 +17,11 @@ struct MyColor()
         return color;
     }
 
-    public static MyColor operator *(float intensity, MyColor color) => color * intensity;
+    public static Color operator *(float intensity, Color color) => color * intensity;
 
-    public static MyColor operator +(MyColor colorA, MyColor colorB)
+    public static Color operator +(Color colorA, Color colorB)
     {
-        var color = new MyColor
+        var color = new Color
         {
             R = colorA.R + colorB.R,
             G = colorA.G + colorB.G,

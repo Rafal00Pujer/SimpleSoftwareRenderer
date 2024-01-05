@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using SimpleSoftwareRenderer;
+using SimpleSoftwareRenderer.Raytracing;
 using System.Diagnostics;
 using System.Numerics;
 
@@ -42,7 +43,7 @@ static Scene CreateScene()
             {
                 Center = new Vector3(0.0f, -1.0f, 3.0f),
                 Radius = 1.0f,
-                Color = new MyColor { R = 255 },
+                Color = new Color { R = 255 },
                 Specular = 500.0f,
                 Reflective = 0.2f
             },
@@ -50,7 +51,7 @@ static Scene CreateScene()
             {
                 Center = new Vector3(2.0f, 0.0f, 4.0f),
                 Radius = 1.0f,
-                Color = new MyColor { B = 255 },
+                Color = new Color { B = 255 },
                 Specular = 500.0f,
                 Reflective = 0.3f
             },
@@ -58,7 +59,7 @@ static Scene CreateScene()
             {
                 Center = new Vector3(-2.0f, 0.0f, 4.0f),
                 Radius = 1.0f,
-                Color = new MyColor { G = 255 },
+                Color = new Color { G = 255 },
                 Specular = 10.0f,
                 Reflective = 0.4f
             },
@@ -66,7 +67,7 @@ static Scene CreateScene()
             {
                 Center = new Vector3(0.0f, -5001.0f, 0.0f),
                 Radius = 5000.0f,
-                Color = new MyColor { R = 255, G = 255 },
+                Color = new Color { R = 255, G = 255 },
                 Specular = 1000.0f,
                 Reflective = 0.5f
             }
