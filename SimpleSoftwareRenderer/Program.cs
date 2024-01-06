@@ -17,6 +17,17 @@ Scene scene = CreateScene();
 
 var rasterization = new SimpleRasterization(scene, pixels);
 
+var cameraPosition = new Vector3(0.0f, 0.0f, 0.0f);
+var cameraPositionMatrix = Matrix4x4.CreateTranslation(cameraPosition);
+Matrix4x4.Invert(cameraPositionMatrix, out cameraPositionMatrix);
+
+var cameraRotation = new Vector3(ToRadians(20.0f), ToRadians(-25.0f), ToRadians(0.0f));
+var cameraRotationMatrix = Matrix4x4.CreateFromYawPitchRoll(cameraRotation.Y, cameraRotation.X, cameraRotation.Z);
+//Matrix4x4.Invert(cameraRotationMatrix, out cameraRotationMatrix);
+cameraRotationMatrix = Matrix4x4.Transpose(cameraRotationMatrix);
+
+var cameraTransform = cameraRotationMatrix * cameraPositionMatrix;
+
 var oneSecond = TimeSpan.FromSeconds(1);
 var stopwatch = Stopwatch.StartNew();
 
@@ -26,7 +37,7 @@ while (!window.Quit)
 
     window.Draw(pixels);
 
-    rasterization.RenderScene();
+    rasterization.RenderScene(cameraTransform, cameraPosition, 90.0f);
 
     Console.Clear();
     Console.WriteLine($"FPS: {oneSecond / stopwatch.Elapsed}");

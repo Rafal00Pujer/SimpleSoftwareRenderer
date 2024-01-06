@@ -16,9 +16,9 @@ internal class ModelInstance
     {
         get
         {
-            return Matrix4x4.CreateFromYawPitchRoll(Rotation.Z, Rotation.Y, Rotation.X)
-                * Matrix4x4.CreateScale(Scale)
-                * Matrix4x4.CreateTranslation(Position);
+            return Matrix4x4.CreateTranslation(Position)
+                * Matrix4x4.CreateFromYawPitchRoll(Rotation.Y, Rotation.X, Rotation.Z)
+                * Matrix4x4.CreateScale(Scale);
         }
     }
 }
