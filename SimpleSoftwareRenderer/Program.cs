@@ -1,10 +1,11 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using SimpleSoftwareRenderer;
 using System.Diagnostics;
+using System.Numerics;
 
 Console.WriteLine("Hello, World!");
 
-using var window = new Window(nameof(SimpleSoftwareRenderer), 600, 400, 600, 600);
+using var window = new Window(nameof(SimpleSoftwareRenderer), 600, 400, 640, 480);
 
 var (screenWidth, screenHeight) = window.FrameSize;
 
@@ -18,6 +19,7 @@ while (!window.Quit)
     window.Run();
 
     //LinesTest();
+    ProjectionTest();
 
     window.Draw(pixels);
 
@@ -28,7 +30,83 @@ while (!window.Quit)
 
 void ProjectionTest()
 {
+    const int pointCount = 8;
 
+    var vertices = new Vector4[pointCount]
+    {
+        new( 0.75f, 0.75f, -2.0f, 1.0f),
+        new( -0.75f, 0.75f, -2.0f, 1.0f),
+        new( -0.75f, -0.75f, -2.0f, 1.0f),
+        new( 0.75f, -0.75f, -2.0f, 1.0f),
+
+        new( -0.75f, 0.75f, -3.5f, 1.0f),
+        new( 0.75f, 0.75f, -3.5f, 1.0f),
+        new( 0.75f, -0.75f, -3.5f, 1.0f),
+        new( -0.75f, -0.75f, -3.5f, 1.0f)
+    };
+
+    const int edgeCount = 12;
+
+    var edgeA = new int[edgeCount]
+    {
+        0, 1, 2, 3,
+        4, 5, 6, 7,
+        1, 5, 3, 7
+    };
+
+    var edgeB = new int[edgeCount]
+    {
+        1, 2, 3, 0,
+        5, 6, 7, 4,
+        4, 0, 6, 2
+    };
+
+    var transformedVertices = new Vector4[pointCount];
+
+    var matrix = MakePerspectiveProjection(45.0f, (float)screenWidth / screenHeight, 0.1f, 10.0f);
+
+    for (var i = 0; i < pointCount; i++)
+    {
+        transformedVertices[i] = Vector4.Transform(vertices[i], matrix);
+
+        transformedVertices[i].X /= transformedVertices[i].W;
+        transformedVertices[i].Y /= transformedVertices[i].W;
+        transformedVertices[i].Z /= transformedVertices[i].W;
+
+        transformedVertices[i].X = (screenWidth / 2) + (screenWidth / 2) * transformedVertices[i].X;
+        transformedVertices[i].Y = (screenHeight / 2) - (screenHeight / 2) * transformedVertices[i].Y;
+
+        //Console.WriteLine(transformedVertices[i]);
+    }
+
+    for (var i = 0; i < edgeCount; i++)
+    {
+        DrawLineBresenham(new Color { R = 255.0f, G = 255.0f, B = 255.0f },
+            (int)transformedVertices[edgeA[i]].X, (int)transformedVertices[edgeB[i]].X,
+            (int)transformedVertices[edgeA[i]].Y, (int)transformedVertices[edgeB[i]].Y);
+    }
+}
+
+Matrix4x4 MakePerspectiveProjection(float fovy, float aspect, float near, float far)
+{
+    var yMax = near * (float)Math.Tan(ToRadians(fovy / 2.0f));
+    var xMax = yMax * aspect;
+
+    var c = -(far + near) / (far - near);
+    var d = -2.0f * far * near / (far - near);
+    var e = near / xMax;
+    var f = near / yMax;
+
+    var matrix = new Matrix4x4
+    {
+        M11 = e,
+        M22 = f,
+        M33 = c,
+        M34 = -1.0f,
+        M43 = d
+    };
+
+    return matrix;
 }
 
 void LinesTest()
@@ -296,11 +374,11 @@ void DrawHorizontalLine(Color color, int x1, int x2, int y)
 
 void DrawVerticalLine(Color color, int x, int y1, int y2)
 {
-    y1 = Math.Clamp(y1, 0, screenWidth - 1);
+    y1 = Math.Clamp(y1, 0, screenHeight - 1);
     y2 = Math.Clamp(y2, 0, screenHeight - 1);
-    x = Math.Clamp(x, 0, screenHeight - 1);
+    x = Math.Clamp(x, 0, screenWidth - 1);
 
-    for (var y = y1; x < y2; y++)
+    for (var y = y1; y < y2; y++)
     {
         PopulatePixel(color, x, y);
     }
