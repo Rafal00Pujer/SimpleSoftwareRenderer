@@ -17,11 +17,11 @@ Scene scene = CreateScene();
 
 var rasterization = new SimpleRasterization(scene, pixels);
 
-var cameraPosition = new Vector3(0.0f, 0.0f, 0.0f);
+var cameraPosition = new Vector3(-3.0f, 1.0f, 2.0f);
 var cameraPositionMatrix = Matrix4x4.CreateTranslation(cameraPosition);
 Matrix4x4.Invert(cameraPositionMatrix, out cameraPositionMatrix);
 
-var cameraRotation = new Vector3(ToRadians(20.0f), ToRadians(-25.0f), ToRadians(0.0f));
+var cameraRotation = new Vector3(ToRadians(0.0f), ToRadians(-30.0f), ToRadians(0.0f));
 var cameraRotationMatrix = Matrix4x4.CreateFromYawPitchRoll(cameraRotation.Y, cameraRotation.X, cameraRotation.Z);
 //Matrix4x4.Invert(cameraRotationMatrix, out cameraRotationMatrix);
 cameraRotationMatrix = Matrix4x4.Transpose(cameraRotationMatrix);
@@ -61,18 +61,186 @@ static Scene CreateScene()
         ],
         Triangles =
         [
-            new Triangle(0, 1, 2, new Color { R = 255.0f }),
-            new Triangle(0, 2, 3, new Color { R = 255.0f }),
-            new Triangle(4, 0, 3, new Color { G = 255.0f }),
-            new Triangle(4, 3, 7, new Color { G = 255.0f }),
-            new Triangle(5, 4, 7, new Color { B = 255.0f }),
-            new Triangle(5, 7, 6, new Color { B = 255.0f }),
-            new Triangle(1, 5, 6, new Color { R = 255.0f, G = 255.0f }),
-            new Triangle(1, 6, 2, new Color { R = 255.0f, G = 255.0f }),
-            new Triangle(4, 5, 1, new Color { R = 255.0f, B = 255.0f }),
-            new Triangle(4, 1, 0, new Color { R = 255.0f, B = 255.0f }),
-            new Triangle(2, 6, 7, new Color { G = 255.0f, B = 255.0f }),
+            new Triangle(0, 1, 2, new Color { R = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 0.0f, 1.0f),
+                    new Vector3(0.0f, 0.0f, 1.0f),
+                    new Vector3(0.0f, 0.0f, 1.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
+            new Triangle(0, 2, 3, new Color { R = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 0.0f, 1.0f),
+                    new Vector3(0.0f, 0.0f, 1.0f),
+                    new Vector3(0.0f, 0.0f, 1.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 1.0f)
+                ]
+            },
+            new Triangle(4, 0, 3, new Color { G = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(1.0f, 0.0f, 0.0f),
+                    new Vector3(1.0f, 0.0f, 0.0f),
+                    new Vector3(1.0f, 0.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
+            new Triangle(4, 3, 7, new Color { G = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(1.0f, 0.0f, 0.0f),
+                    new Vector3(1.0f, 0.0f, 0.0f),
+                    new Vector3(1.0f, 0.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 1.0f)
+                ]
+            },
+            new Triangle(5, 4, 7, new Color { B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 0.0f, -1.0f),
+                    new Vector3(0.0f, 0.0f, -1.0f),
+                    new Vector3(0.0f, 0.0f, -1.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
+            new Triangle(5, 7, 6, new Color { B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 0.0f, -1.0f),
+                    new Vector3(0.0f, 0.0f, -1.0f),
+                    new Vector3(0.0f, 0.0f, -1.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 1.0f)
+                ]
+            },
+            new Triangle(1, 5, 6, new Color { R = 255.0f, G = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(-1.0f, 0.0f, 0.0f),
+                    new Vector3(-1.0f, 0.0f, 0.0f),
+                    new Vector3(-1.0f, 0.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
+            new Triangle(1, 6, 2, new Color { R = 255.0f, G = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(-1.0f, 0.0f, 0.0f),
+                    new Vector3(-1.0f, 0.0f, 0.0f),
+                    new Vector3(-1.0f, 0.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 1.0f)
+                ]
+            },
+            new Triangle(4, 5, 1, new Color { R = 255.0f, B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 1.0f, 0.0f),
+                    new Vector3(0.0f, 1.0f, 0.0f),
+                    new Vector3(0.0f, 1.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
+            new Triangle(4, 1, 0, new Color { R = 255.0f, B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, 1.0f, 0.0f),
+                    new Vector3(0.0f, 1.0f, 0.0f),
+                    new Vector3(0.0f, 1.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 1.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 0.0f)
+                ]
+            },
+            new Triangle(2, 6, 7, new Color { G = 255.0f, B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, -1.0f, 0.0f),
+                    new Vector3(0.0f, -1.0f, 0.0f),
+                    new Vector3(0.0f, -1.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f)
+                ]
+            },
             new Triangle(2, 7, 3, new Color { G = 255.0f, B = 255.0f })
+            {
+                Normals =
+                [
+                    new Vector3(0.0f, -1.0f, 0.0f),
+                    new Vector3(0.0f, -1.0f, 0.0f),
+                    new Vector3(0.0f, -1.0f, 0.0f)
+                ],
+                Uvs =
+                [
+                    new Vector2(0.0f, 0.0f),
+                    new Vector2(1.0f, 1.0f),
+                    new Vector2(0.0f, 1.0f)
+                ]
+            }
         ]
     };
 
@@ -83,12 +251,41 @@ static Scene CreateScene()
             new ModelInstance
             {
                 Model = cube,
-                Position = new Vector3(-1.5f, 0.0f, 7.0f)
+                Position = new Vector3(-1.5f, 0.0f, 7.0f),
+                Scale = new Vector3(0.75f, 0.75f, 0.75f)
             },
             new ModelInstance
             {
                 Model = cube,
-                Position = new Vector3(1.25f, 2.0f, 7.5f)
+                Position = new Vector3(1.25f, 2.5f, 7.5f),
+                Rotation = new Vector3(ToRadians(0.0f), ToRadians(195.0f), ToRadians(0.0f))
+            }
+            ,
+            new ModelInstance
+            {
+                Model = cube,
+                Position = new Vector3(1.75f, 0.0f, 5.0f),
+                Rotation = new Vector3(ToRadians(0.0f), ToRadians(-30.0f), ToRadians(0.0f))
+            }
+        ],
+        Lights =
+        [
+            new Light
+            {
+                Type = LightType.Ambient,
+                Intensity = 0.2f
+            },
+            new Light
+            {
+                Type = LightType.Directional,
+                Intensity = 0.2f,
+                Position = new Vector3(-1.0f, 0.0f, 1.0f)
+            },
+            new Light
+            {
+                Type = LightType.Point,
+                Intensity = 0.6f,
+                Position = new Vector3(-3.0f, 2.0f, -10.0f)
             }
         ]
     };

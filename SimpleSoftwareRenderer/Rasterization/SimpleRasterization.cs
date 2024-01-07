@@ -20,36 +20,53 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
 
     public void RenderScene(Matrix4x4 cameraTransform, Vector3 cameraPosition, float cameraFovInDegress)
     {
-        _cameraToViewport = ViewportWidth / 2.0f / (float)Math.Tan(Math.PI / 180.0 * (cameraFovInDegress / 2.0f));
-        _cameraTransform = cameraTransform;
-        _cameraPosition = cameraPosition;
+        UpdateCamera(cameraTransform, cameraPosition, cameraFovInDegress);
 
-        for (var i = 0; i < _depthBuffer.Length; i++)
-        {
-            _depthBuffer[i] = -1;
-        }
+        ClearDepthBuffer();
 
-        var planes = new List<Plane>
-        {
-            new (Vector3.Normalize(new Vector3(0.0f, 0.0f, 1.0f)), _cameraToViewport),
-            new (Vector3.Normalize(new Vector3(1.0f, 0.0f, 1.0f)), 0.0f),
-            new (Vector3.Normalize(new Vector3(-1.0f, 0.0f, 1.0f)), 0.0f),
-            new (Vector3.Normalize(new Vector3(0.0f, 1.0f, 1.0f)), 0.0f),
-            new (Vector3.Normalize(new Vector3(0.0f, -1.0f, 1.0f)), 0.0f)
-        };
+        var planes = CreatePlanes();
 
         foreach (var instance in _scene.Instances)
         {
             var finalTransform = instance.Transform * _cameraTransform;
 
-            var clipedModel = TransformAndClip(planes, instance.Model, finalTransform);
+            var clipedModel = TransformAndClip(planes, instance.Model, instance.Scale, finalTransform);
 
             if (clipedModel is null)
             {
                 continue;
             }
 
-            RenderModel(clipedModel);
+            RenderModel(clipedModel, instance.Rotation);
+        }
+    }
+
+    private List<Plane> CreatePlanes()
+    {
+        var planes = new List<Plane>
+        {
+            new (Vector3.Normalize(new Vector3(0.0f, 0.0f, 1.0f)), -1.0f * _cameraToViewport), // Near 
+            new (Vector3.Normalize(new Vector3(1.0f, 0.0f, 1.0f)), 0.0f), // Left
+            new (Vector3.Normalize(new Vector3(-1.0f, 0.0f, 1.0f)), 0.0f), // Right
+            new (Vector3.Normalize(new Vector3(0.0f, -1.0f, 1.0f)), 0.0f), // Top
+            new (Vector3.Normalize(new Vector3(0.0f, 1.0f, 1.0f)), 0.0f) // Bottom
+        };
+
+        return planes;
+    }
+
+    private void UpdateCamera(Matrix4x4 cameraTransform, Vector3 cameraPosition, float cameraFovInDegress)
+    {
+        _cameraToViewport = ViewportWidth / 2.0f / (float)Math.Tan(Math.PI / 180.0 * (cameraFovInDegress / 2.0f));
+        _cameraTransform = cameraTransform;
+        _cameraPosition = cameraPosition;
+    }
+
+    private void ClearDepthBuffer()
+    {
+        for (var i = 0; i < _depthBuffer.Length; i++)
+        {
+            _depthBuffer[i] = -1;
         }
     }
 
@@ -78,7 +95,7 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
         return false;
     }
 
-    private static Model? TransformAndClip(List<Plane> planes, Model model, Matrix4x4 transform)
+    private static Model? TransformAndClip(List<Plane> planes, Model model, Vector3 scale, Matrix4x4 transform)
     {
         var vertices = new List<Vector3>();
 
@@ -115,9 +132,9 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
         var inV = new List<(Vector3 vertex, int index)>();
         var outV = new List<(Vector3 vertex, int index)>();
 
-        ClipVertex(plane, vertices[triangle.VertexAIndex], triangle.VertexAIndex);
-        ClipVertex(plane, vertices[triangle.VertexBIndex], triangle.VertexBIndex);
-        ClipVertex(plane, vertices[triangle.VertexCIndex], triangle.VertexCIndex);
+        ClipVertex(plane, triangle.VertexAIndex);
+        ClipVertex(plane, triangle.VertexBIndex);
+        ClipVertex(plane, triangle.VertexCIndex);
 
         switch (inV.Count)
         {
@@ -164,8 +181,10 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
                 break;
         }
 
-        void ClipVertex(Plane plane, Vector3 vertex, int index)
+        void ClipVertex(Plane plane, int index)
         {
+            var vertex = vertices[index];
+
             if (Plane.DotCoordinate(plane, vertex) > 0)
             {
                 inV.Add((vertex, index));
@@ -185,7 +204,7 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
         }
     }
 
-    private void RenderModel(Model model)
+    private void RenderModel(Model model, Vector3 orientation)
     {
         var projected = new List<Vector2>();
 
@@ -198,11 +217,11 @@ internal class SimpleRasterization(Scene scene, byte[,,] screenPixels)
 
         foreach (var triangle in model.Triangles)
         {
-            RenderTriangle(triangle, model.Vertices, projected);
+            RenderTriangle(triangle, model.Vertices, projected, orientation);
         }
     }
 
-    private void RenderTriangle(Triangle triangle, List<Vector3> vertices, List<Vector2> projected)
+    private void RenderTriangle(Triangle triangle, List<Vector3> vertices, List<Vector2> projected, Vector3 orientation)
     {
         // Sort by projected point Y.
         int i0 = triangle.VertexAIndex;
