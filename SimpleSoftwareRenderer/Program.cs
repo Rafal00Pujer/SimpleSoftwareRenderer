@@ -9,7 +9,10 @@ using var window = new Window(nameof(SimpleSoftwareRenderer), 600, 400, 640, 480
 
 var (screenWidth, screenHeight) = window.FrameSize;
 
-var pixels = new byte[screenHeight, screenWidth, 3];
+byte[,,] pixels;
+
+var theta = 0.0f;
+var deltaTime = 0.0f;
 
 var oneSecond = TimeSpan.FromSeconds(1);
 var stopwatch = Stopwatch.StartNew();
@@ -18,14 +21,104 @@ while (!window.Quit)
 {
     window.Run();
 
+    pixels = new byte[screenHeight, screenWidth, 3];
+
     //LinesTest();
-    ProjectionTest();
+    //ProjectionTest();
+    BackFaceTest();
 
     window.Draw(pixels);
 
     Console.Clear();
     Console.WriteLine($"FPS: {oneSecond / stopwatch.Elapsed}");
+    deltaTime = (float)stopwatch.ElapsedMilliseconds;
     stopwatch.Restart();
+}
+
+void BackFaceTest()
+{
+    const int pointCount = 8;
+
+    var vertices = new Vector4[pointCount]
+    {
+        new( 0.75f, 0.75f, 0.75f, 1.0f),
+        new( -0.75f, 0.75f, 0.75f, 1.0f),
+        new( -0.75f, -0.75f, 0.75f, 1.0f),
+        new( 0.75f, -0.75f, 0.75f, 1.0f),
+
+        new( -0.75f, 0.75f, -0.75f, 1.0f),
+        new( 0.75f, 0.75f, -0.75f, 1.0f),
+        new( 0.75f, -0.75f, -0.75f, 1.0f),
+        new( -0.75f, -0.75f, -0.75f, 1.0f)
+    };
+
+    const int planeCount = 6;
+
+    var planeVertices = new int[planeCount, 4]
+    {
+        { 0, 1, 2, 3 }, // front
+        { 1, 0, 5, 4 }, // top
+        { 3, 6, 5, 0 }, // right
+        { 7, 6, 3, 2 }, // bottom
+        { 1, 4, 7, 2 }, // left
+        { 4, 5, 6, 7 } // back
+    };
+
+    theta += 0.1f * deltaTime / 16.6f;
+    if (theta > 360)
+    {
+        theta -= 360;
+    }
+
+    var transformedVertices = new Vector4[pointCount];
+
+    var rotation = Matrix4x4.CreateFromYawPitchRoll(ToRadians(-theta * 3.0f), ToRadians(theta * 2.0f), ToRadians(-theta));
+    var translation = Matrix4x4.CreateTranslation(new Vector3(0.0f, 0.0f, -5.0f));
+    var projection = Matrix4x4.CreatePerspectiveFieldOfView(ToRadians(45.0f), (float)screenWidth / screenHeight, 0.1f, 10.0f);
+
+    var finalTransform = rotation * translation * projection;
+
+    for (var i = 0; i < pointCount; i++)
+    {
+        transformedVertices[i] = Vector4.Transform(vertices[i], finalTransform);
+
+        transformedVertices[i].X /= transformedVertices[i].W;
+        transformedVertices[i].Y /= transformedVertices[i].W;
+        transformedVertices[i].Z /= transformedVertices[i].W;
+
+        transformedVertices[i].X = (screenWidth / 2) + (screenWidth / 2) * transformedVertices[i].X;
+        transformedVertices[i].Y = (screenHeight / 2) - (screenHeight / 2) * transformedVertices[i].Y;
+    }
+
+    for (var i = 0; i < planeCount; i++)
+    {
+        var vertexA = transformedVertices[planeVertices[i, 0]];
+        var vertexB = transformedVertices[planeVertices[i, 1]];
+        var vertexC = transformedVertices[planeVertices[i, 2]];
+
+        var tangent = vertexB - vertexA;
+        var biTangent = vertexC - vertexA;
+
+        var normal = Vector3.Cross(new Vector3(tangent.X, tangent.Y, tangent.Z), new Vector3(biTangent.X, biTangent.Y, biTangent.Z));
+
+        if (normal.Z > 0)
+        {
+            continue;
+        }
+
+        for (var j = 0; j < 4; j++)
+        {
+            var xa = (int)transformedVertices[planeVertices[i, j]].X;
+            var ya = (int)transformedVertices[planeVertices[i, j]].Y;
+
+            var xb = (int)transformedVertices[planeVertices[i, (j + 1) % 4]].X;
+            var yb = (int)transformedVertices[planeVertices[i, (j + 1) % 4]].Y;
+
+            DrawLineBresenham(new Color { R = 255.0f, G = 255.0f, B = 255.0f },
+            xa, xb,
+            ya, yb);
+        }
+    }
 }
 
 void ProjectionTest()
