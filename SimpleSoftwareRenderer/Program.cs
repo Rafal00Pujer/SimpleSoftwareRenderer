@@ -27,7 +27,8 @@ while (!window.Quit)
     //ProjectionTest();
     //BackFaceTest();
     //ClipingTest();
-    FlatShadingTest();
+    //FlatShadingTest();
+    ColorBlendTest();
 
     window.Draw(pixels);
 
@@ -35,6 +36,134 @@ while (!window.Quit)
     Console.WriteLine($"FPS: {oneSecond / stopwatch.Elapsed}");
     deltaTime = stopwatch.ElapsedMilliseconds;
     stopwatch.Restart();
+}
+
+void ColorBlendTest()
+{
+    const int pointCount = 8;
+
+    var vertices = new Vector4[pointCount]
+    {
+        new( 0.75f, 0.75f, 0.75f, 1.0f),
+        new( -0.75f, 0.75f, 0.75f, 1.0f),
+        new( -0.75f, -0.75f, 0.75f, 1.0f),
+        new( 0.75f, -0.75f, 0.75f, 1.0f),
+
+        new( -0.75f, 0.75f, -0.75f, 1.0f),
+        new( 0.75f, 0.75f, -0.75f, 1.0f),
+        new( 0.75f, -0.75f, -0.75f, 1.0f),
+        new( -0.75f, -0.75f, -0.75f, 1.0f)
+    };
+
+    var attributes = new Payload[pointCount]
+    {
+        new() {Data = [0.5f,0.5f,0.5f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [1.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+
+        new() {Data = [0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [1.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [0.0f,1.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f]},
+        new() {Data = [1.0f,1.0f,1.0f,0.0f,0.0f,0.0f,0.0f,0.0f]}
+    };
+
+    const int planeCount = 6;
+    const int planeVerticesCount = 4;
+
+    var planeVertices = new int[planeCount, planeVerticesCount]
+    {
+        { 0, 1, 2, 3 }, // front
+        { 1, 0, 5, 4 }, // top
+        { 3, 6, 5, 0 }, // right
+        { 7, 6, 3, 2 }, // bottom
+        { 1, 4, 7, 2 }, // left
+        { 4, 5, 6, 7 } // back
+    };
+
+    theta += 0.1f * deltaTime / 16.6f;
+    if (theta > 360)
+    {
+        theta -= 360;
+    }
+
+    var transformedVertices = new Vector4[pointCount];
+
+    var rotation = Matrix4x4.CreateFromYawPitchRoll(ToRadians(-theta * 3.0f), ToRadians(theta * 2.0f), ToRadians(-theta));
+    var translation = Matrix4x4.CreateTranslation(new Vector3(0.0f, 0.0f, -5.0f));
+
+    const float fovY = 45.0f;
+    var aspect = (float)screenWidth / screenHeight;
+    const float near = 0.1f;
+    const float far = 10.0f;
+
+    var projection = Matrix4x4.CreatePerspectiveFieldOfView(ToRadians(fovY), aspect, near, far);
+    var viewFrustum = MakeViewFrustum(fovY, aspect, -near, -far);
+
+    var finalTransform = rotation * translation;
+
+    for (var i = 0; i < pointCount; i++)
+    {
+        transformedVertices[i] = Vector4.Transform(vertices[i], finalTransform);
+    }
+
+    for (var i = 0; i < planeCount; i++)
+    {
+        var vertexA = transformedVertices[planeVertices[i, 0]];
+        var vertexB = transformedVertices[planeVertices[i, 1]];
+        var vertexC = transformedVertices[planeVertices[i, 2]];
+
+        var tangent = vertexB - vertexA;
+        var biTangent = vertexC - vertexA;
+
+        var normal = Vector3.Normalize(
+            Vector3.Cross(new Vector3(tangent.X, tangent.Y, tangent.Z),
+            new Vector3(biTangent.X, biTangent.Y, biTangent.Z)));
+
+        var fragmentToViewer = new Vector3(-vertexA.X, -vertexA.Y, -vertexA.Z);
+
+        if (Vector3.Dot(normal, fragmentToViewer) < 0)
+        {
+            continue;
+        }
+
+        var edges = new EdgeTable();
+
+        for (var j = 0; j < planeVerticesCount; j++)
+        {
+            edges.Vertices.Add(transformedVertices[planeVertices[i, j]]);
+
+            var payload = new Payload();
+            Array.Copy(attributes[planeVertices[i, j]].Data, payload.Data, Payload.PayloadCount);
+
+            var torch = new Vector3(0.0f, 0.0f, 1.0f);
+            var diffuseColor = new Vector3(payload.Data[0], payload.Data[1], payload.Data[2]);
+            diffuseColor *= Vector3.Dot(normal, torch);
+
+            payload.Data[0] = diffuseColor.X;
+            payload.Data[1] = diffuseColor.Y;
+            payload.Data[2] = diffuseColor.Z;
+
+            edges.Attributes.Add(payload);
+        }
+
+        edges = FrustumClip(edges, viewFrustum);
+
+        for (var j = 0; j < edges.Vertices.Count; j++)
+        {
+            var point = Vector4.Transform(edges.Vertices[j], projection);
+
+            point.X /= point.W;
+            point.Y /= point.W;
+
+            point.X = (screenWidth / 2) + (screenWidth / 2) * point.X;
+            point.Y = (screenHeight / 2) + (screenHeight / 2) * point.Y;
+
+            edges.Vertices[j] = point;
+        }
+
+        DrawPolygonBlended(edges);
+    }
 }
 
 void FlatShadingTest()
@@ -440,6 +569,331 @@ void LinesTest()
 
     // steep, - slope
     DrawLineBresenham(new Color { B = 255.0f }, 620, 220, 32, 599);
+}
+
+void DrawPolygonBlended(EdgeTable polygon)
+{
+    var xStart = new Vertex[screenWidth];
+    var xEnd = new Vertex[screenWidth];
+
+    for (var i = 0; i < xStart.Length; i++)
+    {
+        xStart[i] = new Vertex();
+        xEnd[i] = new Vertex();
+    }
+
+    var yMin = 480;
+    var yMax = 0;
+
+    foreach (var vertex in polygon.Vertices)
+    {
+        if (vertex.Y < yMin)
+        {
+            yMin = (int)vertex.Y;
+        }
+
+        if (vertex.Y > yMax)
+        {
+            yMax = (int)vertex.Y;
+        }
+    }
+
+    for (var y = yMin; y <= yMax; y++)
+    {
+        xStart[y].X = screenWidth;
+        xEnd[y].X = 0;
+    }
+
+    for (var i = 0; i < polygon.Vertices.Count; i++)
+    {
+        var v1 = new Vertex
+        {
+            X = (int)polygon.Vertices[i].X,
+            Y = (int)polygon.Vertices[i].Y
+        };
+
+        Array.Copy(polygon.Attributes[i].Data, v1.Attributes.Data, Payload.PayloadCount);
+
+        var v2 = new Vertex
+        {
+            X = (int)polygon.Vertices[(i + 1) % polygon.Vertices.Count].X,
+            Y = (int)polygon.Vertices[(i + 1) % polygon.Vertices.Count].Y
+        };
+
+        Array.Copy(polygon.Attributes[(i + 1) % polygon.Vertices.Count].Data, v2.Attributes.Data, Payload.PayloadCount);
+
+        if (Math.Abs(v2.X - v1.X) < Math.Abs(v2.Y - v1.Y))
+        {
+            if (v1.Y < v2.Y)
+            {
+                BlendSteepEdge(v1, v2, xStart, xEnd);
+            }
+            else
+            {
+                BlendSteepEdge(v2, v1, xStart, xEnd);
+            }
+        }
+        else
+        {
+            if (v1.X < v2.X)
+            {
+                BlendShallowEdge(v1, v2, xStart, xEnd);
+            }
+            else
+            {
+                BlendShallowEdge(v2, v1, xStart, xEnd);
+            }
+        }
+    }
+
+    for (var y = yMin; y <= yMax; y++)
+    {
+        var v1 = new Vertex
+        {
+            X = xStart[y].X,
+            Y = xStart[y].Y
+        };
+
+        Array.Copy(xStart[y].Attributes.Data, v1.Attributes.Data, Payload.PayloadCount);
+
+        var v2 = new Vertex
+        {
+            X = xEnd[y].X,
+            Y = xEnd[y].Y
+        };
+
+        Array.Copy(xEnd[y].Attributes.Data, v2.Attributes.Data, Payload.PayloadCount);
+
+        DrawBlendedHorizontalLine(v1, v2, y);
+    }
+}
+
+void BlendShallowEdge(Vertex v1, Vertex v2, Vertex[] xStart, Vertex[] xEnd)
+{
+    var dx = v2.X - v1.X;
+    var dy = v2.Y - v1.Y;
+    var yInc = 1;
+
+    if (dy < 0)
+    {
+        yInc = -1;
+        dy *= -1;
+    }
+
+    var d = 2 * dy - dx;
+    var dInc = 2 * (dy - dx);
+    var dNoInc = 2 * dy;
+
+    var dPdx = new Payload { Data = new float[Payload.PayloadCount] };
+
+    for (var i = 0; i < Payload.PayloadCount; i++)
+    {
+        dPdx.Data[i] = (v2.Attributes.Data[i] - v1.Attributes.Data[i]) / dx;
+    }
+
+    var frag = new Vertex
+    {
+        X = v1.X,
+        Y = v1.Y,
+    };
+    Array.Copy(v1.Attributes.Data, frag.Attributes.Data, Payload.PayloadCount);
+
+    var y = v1.Y;
+
+    for (var x = v1.X; x <= v2.X; x++)
+    {
+        if (x < xStart[y].X)
+        {
+            xStart[y].X = x;
+            //xStart[y].Attributes = frag.Attributes;
+
+            Array.Copy(frag.Attributes.Data, xStart[y].Attributes.Data, Payload.PayloadCount);
+        }
+
+        if (x > xEnd[y].X)
+        {
+            xEnd[y].X = x;
+            //xEnd[y].Attributes = frag.Attributes;
+
+            Array.Copy(frag.Attributes.Data, xEnd[y].Attributes.Data, Payload.PayloadCount);
+        }
+
+        if (d > 0)
+        {
+            y += yInc;
+            d += dInc;
+        }
+        else
+        {
+            d += dNoInc;
+        }
+
+        for (var i = 0; i < Payload.PayloadCount; i++)
+        {
+            frag.Attributes.Data[i] += dPdx.Data[i];
+        }
+    }
+}
+
+void BlendSteepEdge(Vertex v1, Vertex v2, Vertex[] xStart, Vertex[] xEnd)
+{
+    var dx = v2.X - v1.X;
+    var dy = v2.Y - v1.Y;
+    var xInc = 1;
+
+    if (dx < 0)
+    {
+        xInc = -1;
+        dx *= -1;
+    }
+
+    var d = 2 * dx - dy;
+    var dInc = 2 * (dx - dy);
+    var dNoInc = 2 * dx;
+
+    var dPdy = new Payload { Data = new float[Payload.PayloadCount] };
+
+    for (var i = 0; i < Payload.PayloadCount; i++)
+    {
+        dPdy.Data[i] = (v2.Attributes.Data[i] - v1.Attributes.Data[i]) / dy;
+    }
+
+    var frag = new Vertex
+    {
+        X = v1.X,
+        Y = v1.Y,
+    };
+    Array.Copy(v1.Attributes.Data, frag.Attributes.Data, Payload.PayloadCount);
+
+    var x = v1.X;
+
+    for (var y = v1.Y; y <= v2.Y; y++)
+    {
+        if (x < xStart[y].X)
+        {
+            xStart[y].X = x;
+            //xStart[y].Attributes = frag.Attributes;
+
+            Array.Copy(frag.Attributes.Data, xStart[y].Attributes.Data, Payload.PayloadCount);
+        }
+
+        if (x > xEnd[y].X)
+        {
+            xEnd[y].X = x;
+            //xEnd[y].Attributes = frag.Attributes;
+
+            Array.Copy(frag.Attributes.Data, xEnd[y].Attributes.Data, Payload.PayloadCount);
+        }
+
+        if (d > 0)
+        {
+            x += xInc;
+            d += dInc;
+        }
+        else
+        {
+            d += dNoInc;
+        }
+
+        for (var i = 0; i < Payload.PayloadCount; i++)
+        {
+            frag.Attributes.Data[i] += dPdy.Data[i];
+        }
+    }
+}
+
+void DrawBlendedHorizontalLine(Vertex v1, Vertex v2, int y)
+{
+    var x1 = Math.Clamp(v1.X, 0, screenWidth - 1);
+    var x2 = Math.Clamp(v2.X, 0, screenWidth - 1);
+    y = Math.Clamp(y, 0, screenHeight - 1);
+
+    //var frag = v1.Attributes;
+    var frag = new Payload();
+    Array.Copy(v1.Attributes.Data, frag.Data, Payload.PayloadCount);
+
+    var dx = x2 - x1;
+
+    var dPdx = new Payload { Data = new float[Payload.PayloadCount] };
+
+    for (var i = 0; i < Payload.PayloadCount; i++)
+    {
+        dPdx.Data[i] = (v2.Attributes.Data[i] - v1.Attributes.Data[i]) / dx;
+    }
+
+    for (var x = x1; x < x2; x++)
+    {
+        //var color = new Color { R = frag.Data[0], G = frag.Data[1], B = frag.Data[2] };
+        var color = new Color { R = ScaleColor(frag.Data[0]), G = ScaleColor(frag.Data[1]), B = ScaleColor(frag.Data[2]) };
+
+        PopulatePixel(color, x, y);
+
+        for (var i = 0; i < Payload.PayloadCount; i++)
+        {
+            frag.Data[i] += dPdx.Data[i];
+        }
+    }
+
+    float ScaleColor(float colorToScale)
+    {
+        return 255.0f * colorToScale;
+    }
+}
+
+EdgeTable FrustumClip(EdgeTable input, Frustum f)
+{
+    for (var i = 0; i < Frustum.PlaneCount; i++)
+    {
+        input = ClipAgainstBoundryWithAttributes(input, f[i]);
+    }
+
+    return input;
+}
+
+EdgeTable ClipAgainstBoundryWithAttributes(EdgeTable input, Plane p)
+{
+    var output = new EdgeTable();
+    var vertexCount = input.Vertices.Count;
+
+    for (var i = 0; i < vertexCount; i++)
+    {
+        var a = input.Vertices[i];
+        var b = input.Vertices[(i + 1) % vertexCount];
+
+        var t = PlaneIntersectionPoint(a, b, p);
+        var c = Vector4.Lerp(a, b, t);
+
+        var payloadA = input.Attributes[i];
+        var payloadB = input.Attributes[(i + 1) % vertexCount];
+        var payloadC = new Payload { Data = new float[Payload.PayloadCount] };
+
+        for (var j = 0; j < Payload.PayloadCount; j++)
+        {
+            payloadC.Data[j] = (payloadA.Data[j] * (1.0f - t)) + (payloadB.Data[j] * t);
+        }
+
+        // b inside of boundary
+        if (!PointBehindPlane(b, p))
+        {
+            // a outside of boundary
+            if (PointBehindPlane(a, p))
+            {
+                output.Vertices.Add(c);
+                output.Attributes.Add(payloadC);
+            }
+
+            output.Vertices.Add(b);
+            output.Attributes.Add(payloadB);
+        }
+        // a is visible
+        else if (!PointBehindPlane(a, p))
+        {
+            output.Vertices.Add(c);
+            output.Attributes.Add(payloadC);
+        }
+    }
+
+    return output;
 }
 
 void DrawPolygonFlat(Color color, EdgeTable edgeTable)
@@ -966,6 +1420,7 @@ void PopulatePixel(Color color, int x, int y)
 struct EdgeTable()
 {
     public List<Vector4> Vertices { get; set; } = new();
+    public List<Payload> Attributes { get; set; } = new();
 }
 
 readonly struct Frustum()
@@ -978,5 +1433,31 @@ readonly struct Frustum()
     {
         get => _planes[index];
         set => _planes[index] = value;
+    }
+}
+
+struct Payload
+{
+    public const int PayloadCount = 8;
+
+    public float[] Data { get; set; }
+
+    public Payload()
+    {
+        Data = new float[PayloadCount];
+    }
+}
+
+struct Vertex
+{
+    public Payload Attributes { get; set; }
+
+    public int X { get; set; }
+
+    public int Y { get; set; }
+
+    public Vertex()
+    {
+        Attributes = new Payload();
     }
 }
