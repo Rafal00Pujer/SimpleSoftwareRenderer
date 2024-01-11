@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.1" />
     <PackageReference Include="Vanara.PInvoke.Gdi32" Version="4.0.0-beta" />
     <PackageReference Include="Vanara.PInvoke.Shared" Version="4.0.0-beta" />
     <PackageReference Include="Vanara.PInvoke.User32" Version="4.0.0-beta" />

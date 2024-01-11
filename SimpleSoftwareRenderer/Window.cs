@@ -79,8 +79,6 @@ internal class Window : IDisposable
         }
     }
 
-    private uint p = 0;
-
     public void Draw(byte[,,] pixelsValues)
     {
         if (pixelsValues.GetLength(0) != frame.Height
@@ -175,6 +173,7 @@ internal class Window : IDisposable
     {
         // Dispose of unmanaged resources.
         Dispose(true);
+
         // Suppress finalization.
         GC.SuppressFinalize(this);
     }
@@ -197,7 +196,7 @@ internal class Window : IDisposable
             frameBitmap.Dispose();
         }
 
-        // free unmanaged resources (unmanaged objects) and override a finalizer below.
+        // free unmanaged resources (unmanaged objects).
         User32.UnregisterClass(className, hInstance);
         WindowProcPin.Free();
 
