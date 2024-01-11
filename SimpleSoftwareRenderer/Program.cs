@@ -5,6 +5,8 @@ using System.Numerics;
 
 Console.WriteLine("Hello, World!");
 
+var texture = await Texture.LoadTexture("C:\\Programy Visual\\SimpleSoftwareRenderer\\SimpleSoftwareRenderer\\Tex\\floor.png");
+
 using var window = new Window(nameof(SimpleSoftwareRenderer), 600, 400, 640, 480);
 
 var (screenWidth, screenHeight) = window.FrameSize;
@@ -28,7 +30,8 @@ while (!window.Quit)
     //BackFaceTest();
     //ClipingTest();
     //FlatShadingTest();
-    ColorBlendTest();
+    //ColorBlendTest();
+    TexttureTest();
 
     window.Draw(pixels);
 
@@ -36,6 +39,154 @@ while (!window.Quit)
     Console.WriteLine($"FPS: {oneSecond / stopwatch.Elapsed}");
     deltaTime = stopwatch.ElapsedMilliseconds;
     stopwatch.Restart();
+}
+
+void TexttureTest()
+{
+    const int pointCount = 16;
+
+    var vertices = new Vector4[pointCount]
+    {
+        new(0.75f, -0.75f, -0.75f, 1.0f ),
+        new(-0.75f, -0.75f, -0.75f, 1.0f),
+        new(-0.75f,  0.75f, -0.75f, 1.0f),
+        new(0.75f,  0.75f, -0.75f, 1.0f ),
+
+        new(-0.75f, -0.75f,  0.75f, 1.0f),
+        new(0.75f, -0.75f,  0.75f, 1.0f ),
+        new(0.75f,  0.75f,  0.75f, 1.0f ),
+        new(-0.75f,  0.75f,  0.75f, 1.0f),
+
+        new(-0.75f, -0.75f, -0.75f, 1.0f),
+        new(0.75f, -0.75f, -0.75f, 1.0f ),
+        new(0.75f, -0.75f,  0.75f, 1.0f ),
+        new(-0.75f, -0.75f,  0.75f, 1.0f),
+
+        new(-0.75f,  0.75f, -0.75f, 1.0f),
+        new(-0.75f,  0.75f,  0.75f, 1.0f),
+        new(0.75f,  0.75f,  0.75f, 1.0f ),
+        new(0.75f,  0.75f, -0.75f, 1.0f )
+    };
+
+    var attributes = new Payload[pointCount]
+    {
+        new() {Data = [0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [0.5f, 1.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 1.0f, 0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+
+        new() {Data = [0.5f, 0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [0.5f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+
+        new() {Data = [1.0f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+
+        new() {Data = [0.5f, 1.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f]},
+        new() {Data = [1.0f, 1.0f, 0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f]}
+    };
+
+    const int planeCount = 6;
+    const int planeVerticesCount = 4;
+
+    var planeVertices = new int[planeCount, planeVerticesCount]
+    {
+        {0, 1, 2, 3    }, // front
+        {8, 9, 10, 11  }, // top
+        {3, 6, 5, 0    }, // right
+        {12, 13, 14, 15}, // bottom
+        {1, 4, 7, 2    }, // left
+        {4, 5, 6, 7    } // back
+    };
+
+    theta += 0.1f * deltaTime / 16.6f;
+    if (theta > 360)
+    {
+        theta -= 360;
+    }
+
+    var transformedVertices = new Vector4[pointCount];
+
+    var rotation = Matrix4x4.CreateFromYawPitchRoll(ToRadians(-theta * 3.0f), ToRadians(theta * 2.0f), ToRadians(-theta));
+    var translation = Matrix4x4.CreateTranslation(new Vector3(0.0f, 0.0f, -5.0f));
+
+    const float fovY = 45.0f;
+    var aspect = (float)screenWidth / screenHeight;
+    const float near = 0.1f;
+    const float far = 10.0f;
+
+    var projection = Matrix4x4.CreatePerspectiveFieldOfView(ToRadians(fovY), aspect, near, far);
+    var viewFrustum = MakeViewFrustum(fovY, aspect, -near, -far);
+
+    var finalTransform = rotation * translation;
+
+    for (var i = 0; i < pointCount; i++)
+    {
+        transformedVertices[i] = Vector4.Transform(vertices[i], finalTransform);
+    }
+
+    for (var i = 0; i < planeCount; i++)
+    {
+        var vertexA = transformedVertices[planeVertices[i, 0]];
+        var vertexB = transformedVertices[planeVertices[i, 1]];
+        var vertexC = transformedVertices[planeVertices[i, 2]];
+
+        var tangent = vertexB - vertexA;
+        var biTangent = vertexC - vertexA;
+
+        var normal = Vector3.Normalize(
+            Vector3.Cross(new Vector3(tangent.X, tangent.Y, tangent.Z),
+            new Vector3(biTangent.X, biTangent.Y, biTangent.Z)));
+
+        var fragmentToViewer = new Vector3(-vertexA.X, -vertexA.Y, -vertexA.Z);
+
+        if (Vector3.Dot(normal, fragmentToViewer) < 0)
+        {
+            continue;
+        }
+
+        var edges = new EdgeTable();
+
+        for (var j = 0; j < planeVerticesCount; j++)
+        {
+            edges.Vertices.Add(transformedVertices[planeVertices[i, j]]);
+
+            var payload = new Payload();
+            Array.Copy(attributes[planeVertices[i, j]].Data, payload.Data, Payload.PayloadCount);
+
+            var torch = new Vector3(0.0f, 0.0f, 1.0f);
+            var diffuseColor = new Vector3(payload.Data[0], payload.Data[1], payload.Data[2]);
+            diffuseColor *= Vector3.Dot(normal, torch);
+
+            payload.Data[0] = diffuseColor.X;
+            payload.Data[1] = diffuseColor.Y;
+            payload.Data[2] = diffuseColor.Z;
+
+            edges.Attributes.Add(payload);
+        }
+
+        edges = FrustumClip(edges, viewFrustum);
+
+        for (var j = 0; j < edges.Vertices.Count; j++)
+        {
+            var point = Vector4.Transform(edges.Vertices[j], projection);
+
+            point.X /= point.W;
+            point.Y /= point.W;
+
+            point.X = (screenWidth / 2) + (screenWidth / 2) * point.X;
+            point.Y = (screenHeight / 2) + (screenHeight / 2) * point.Y;
+
+            edges.Vertices[j] = point;
+        }
+
+        DrawPolygonWithTexture(edges, texture);
+    }
 }
 
 void ColorBlendTest()
@@ -264,7 +415,7 @@ void FlatShadingTest()
         }
 
         var torch = new Vector3(0.0f, 0.0f, 1.0f);
-        var diffuseColor = new Color { R = 255.0f, G = 255.0f, B = 255.0f };
+        var diffuseColor = new SimpleColor { R = 255.0f, G = 255.0f, B = 255.0f };
         diffuseColor *= Vector3.Dot(normal, torch);
 
         DrawPolygonFlat(diffuseColor, edges);
@@ -368,7 +519,7 @@ void ClipingTest()
             pointB.X = (screenWidth / 2) + (screenWidth / 2) * pointB.X;
             pointB.Y = (screenHeight / 2) + (screenHeight / 2) * pointB.Y;
 
-            DrawLineBresenham(new Color { R = 255.0f, G = 255.0f, B = 255.0f },
+            DrawLineBresenham(new SimpleColor { R = 255.0f, G = 255.0f, B = 255.0f },
             (int)pointA.X, (int)pointB.X,
             (int)pointA.Y, (int)pointB.Y);
         }
@@ -454,7 +605,7 @@ void BackFaceTest()
             var xb = (int)transformedVertices[planeVertices[i, (j + 1) % 4]].X;
             var yb = (int)transformedVertices[planeVertices[i, (j + 1) % 4]].Y;
 
-            DrawLineBresenham(new Color { R = 255.0f, G = 255.0f, B = 255.0f },
+            DrawLineBresenham(new SimpleColor { R = 255.0f, G = 255.0f, B = 255.0f },
             xa, xb,
             ya, yb);
         }
@@ -514,7 +665,7 @@ void ProjectionTest()
 
     for (var i = 0; i < edgeCount; i++)
     {
-        DrawLineBresenham(new Color { R = 255.0f, G = 255.0f, B = 255.0f },
+        DrawLineBresenham(new SimpleColor { R = 255.0f, G = 255.0f, B = 255.0f },
             (int)transformedVertices[edgeA[i]].X, (int)transformedVertices[edgeB[i]].X,
             (int)transformedVertices[edgeA[i]].Y, (int)transformedVertices[edgeB[i]].Y);
     }
@@ -546,29 +697,126 @@ void LinesTest()
 {
     // naive
     // shallow, + slope
-    DrawLineNaive(new Color { G = 255.0f }, 20, 420, 32, 128);
+    DrawLineNaive(new SimpleColor { G = 255.0f }, 20, 420, 32, 128);
 
     // steep, + slope
-    DrawLineNaive(new Color { G = 255.0f }, 20, 420, 32, 599);
+    DrawLineNaive(new SimpleColor { G = 255.0f }, 20, 420, 32, 599);
 
     // shallow, - slope
-    DrawLineNaive(new Color { G = 255.0f }, 420, 20, 32, 128);
+    DrawLineNaive(new SimpleColor { G = 255.0f }, 420, 20, 32, 128);
 
     // steep, - slope
-    DrawLineNaive(new Color { G = 255.0f }, 420, 20, 32, 599);
+    DrawLineNaive(new SimpleColor { G = 255.0f }, 420, 20, 32, 599);
 
     // bressenham
     // shallow, + slope
-    DrawLineBresenham(new Color { B = 255.0f }, 220, 620, 32, 128);
+    DrawLineBresenham(new SimpleColor { B = 255.0f }, 220, 620, 32, 128);
 
     // steep, + slope
-    DrawLineBresenham(new Color { B = 255.0f }, 220, 620, 32, 599);
+    DrawLineBresenham(new SimpleColor { B = 255.0f }, 220, 620, 32, 599);
 
     // shallow, - slope
-    DrawLineBresenham(new Color { B = 255.0f }, 620, 220, 32, 128);
+    DrawLineBresenham(new SimpleColor { B = 255.0f }, 620, 220, 32, 128);
 
     // steep, - slope
-    DrawLineBresenham(new Color { B = 255.0f }, 620, 220, 32, 599);
+    DrawLineBresenham(new SimpleColor { B = 255.0f }, 620, 220, 32, 599);
+}
+
+void DrawPolygonWithTexture(EdgeTable polygon, Texture texture)
+{
+    var xStart = new Vertex[screenWidth];
+    var xEnd = new Vertex[screenWidth];
+
+    for (var i = 0; i < xStart.Length; i++)
+    {
+        xStart[i] = new Vertex();
+        xEnd[i] = new Vertex();
+    }
+
+    var yMin = 480;
+    var yMax = 0;
+
+    foreach (var vertex in polygon.Vertices)
+    {
+        if (vertex.Y < yMin)
+        {
+            yMin = (int)vertex.Y;
+        }
+
+        if (vertex.Y > yMax)
+        {
+            yMax = (int)vertex.Y;
+        }
+    }
+
+    for (var y = yMin; y <= yMax; y++)
+    {
+        xStart[y].X = screenWidth;
+        xEnd[y].X = 0;
+    }
+
+    for (var i = 0; i < polygon.Vertices.Count; i++)
+    {
+        var v1 = new Vertex
+        {
+            X = (int)polygon.Vertices[i].X,
+            Y = (int)polygon.Vertices[i].Y
+        };
+
+        Array.Copy(polygon.Attributes[i].Data, v1.Attributes.Data, Payload.PayloadCount);
+
+        var v2 = new Vertex
+        {
+            X = (int)polygon.Vertices[(i + 1) % polygon.Vertices.Count].X,
+            Y = (int)polygon.Vertices[(i + 1) % polygon.Vertices.Count].Y
+        };
+
+        Array.Copy(polygon.Attributes[(i + 1) % polygon.Vertices.Count].Data, v2.Attributes.Data, Payload.PayloadCount);
+
+        if (Math.Abs(v2.X - v1.X) < Math.Abs(v2.Y - v1.Y))
+        {
+            if (v1.Y < v2.Y)
+            {
+                BlendSteepEdge(v1, v2, xStart, xEnd);
+            }
+            else
+            {
+                BlendSteepEdge(v2, v1, xStart, xEnd);
+            }
+        }
+        else
+        {
+            if (v1.X < v2.X)
+            {
+                BlendShallowEdge(v1, v2, xStart, xEnd);
+            }
+            else
+            {
+                BlendShallowEdge(v2, v1, xStart, xEnd);
+            }
+        }
+    }
+
+    for (var y = yMin; y <= yMax; y++)
+    {
+        var v1 = new Vertex
+        {
+            X = xStart[y].X,
+            Y = xStart[y].Y
+        };
+
+        Array.Copy(xStart[y].Attributes.Data, v1.Attributes.Data, Payload.PayloadCount);
+
+        var v2 = new Vertex
+        {
+            X = xEnd[y].X,
+            Y = xEnd[y].Y
+        };
+
+        Array.Copy(xEnd[y].Attributes.Data, v2.Attributes.Data, Payload.PayloadCount);
+
+        DrawHorizontalLineWithTexture(v1, v2, y, texture);
+    }
 }
 
 void DrawPolygonBlended(EdgeTable polygon)
@@ -802,6 +1050,72 @@ void BlendSteepEdge(Vertex v1, Vertex v2, Vertex[] xStart, Vertex[] xEnd)
     }
 }
 
+void DrawHorizontalLineWithTexture(Vertex v1, Vertex v2, int y, Texture texture)
+{
+    var x1 = Math.Clamp(v1.X, 0, screenWidth - 1);
+    var x2 = Math.Clamp(v2.X, 0, screenWidth - 1);
+    y = Math.Clamp(y, 0, screenHeight - 1);
+
+    var frag = new Payload();
+    Array.Copy(v1.Attributes.Data, frag.Data, Payload.PayloadCount);
+
+    var dx = x2 - x1;
+
+    var dPdx = new Payload { Data = new float[Payload.PayloadCount] };
+
+    for (var i = 0; i < Payload.PayloadCount; i++)
+    {
+        dPdx.Data[i] = (v2.Attributes.Data[i] - v1.Attributes.Data[i]) / dx;
+    }
+
+    for (var x = x1; x < x2; x++)
+    {
+        var uLeft = (int)((texture.Width - 1) * frag.Data[3]);
+        var uRight = uLeft + 1;
+
+        if (uRight >= texture.Width)
+        {
+            uRight = 0;
+        }
+
+        var fracU = texture.Width * frag.Data[3] - uLeft;
+        var left = 1.0f - fracU;
+        var right = fracU;
+
+        var vTop = (int)((texture.Height - 1) * frag.Data[4]);
+        var vBottom = vTop + 1;
+
+        if (vBottom >= texture.Height)
+        {
+            vBottom = 0;
+        }
+
+        var fracV = texture.Height * frag.Data[4] - vTop;
+        var top = 1.0f - fracV;
+        var bottom = fracV;
+
+        var topLeftColor = texture[vTop, uLeft] * left;
+        var topRightColor = texture[vTop, uRight] * right;
+        var topColor = (topLeftColor + topRightColor) * top;
+
+        var bottomLeftColor = texture[vBottom, uLeft] * left;
+        var bottomRightColor = texture[vBottom, uRight] * right;
+        var bottomColor = (bottomLeftColor + bottomRightColor) * bottom;
+
+        var textureColor = topColor + bottomColor;
+
+        var payloadScaleColor = new SimpleColor { R = frag.Data[0], G = frag.Data[1], B = frag.Data[2] };
+
+        PopulatePixel(textureColor * payloadScaleColor, x, y);
+
+        for (var i = 0; i < Payload.PayloadCount; i++)
+        {
+            frag.Data[i] += dPdx.Data[i];
+        }
+    }
+}
+
+
 void DrawBlendedHorizontalLine(Vertex v1, Vertex v2, int y)
 {
     var x1 = Math.Clamp(v1.X, 0, screenWidth - 1);
@@ -824,7 +1138,7 @@ void DrawBlendedHorizontalLine(Vertex v1, Vertex v2, int y)
     for (var x = x1; x < x2; x++)
     {
         //var color = new Color { R = frag.Data[0], G = frag.Data[1], B = frag.Data[2] };
-        var color = new Color { R = ScaleColor(frag.Data[0]), G = ScaleColor(frag.Data[1]), B = ScaleColor(frag.Data[2]) };
+        var color = new SimpleColor { R = ScaleColor(frag.Data[0]), G = ScaleColor(frag.Data[1]), B = ScaleColor(frag.Data[2]) };
 
         PopulatePixel(color, x, y);
 
@@ -896,7 +1210,7 @@ EdgeTable ClipAgainstBoundryWithAttributes(EdgeTable input, Plane p)
     return output;
 }
 
-void DrawPolygonFlat(Color color, EdgeTable edgeTable)
+void DrawPolygonFlat(SimpleColor color, EdgeTable edgeTable)
 {
     var xStart = new int[screenWidth];
     var xEnd = new int[screenWidth];
@@ -1157,7 +1471,7 @@ bool PointBehindPlane(Vector4 v, Plane p)
     return Plane.DotCoordinate(p, new Vector3(v.X, v.Y, v.Z)) < 0;
 }
 
-void DrawLineBresenham(Color color, int x1, int x2, int y1, int y2)
+void DrawLineBresenham(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     if (x1 == x2)
     {
@@ -1211,7 +1525,7 @@ void DrawLineBresenham(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawShallowLineBresenham(Color color, int x1, int x2, int y1, int y2)
+void DrawShallowLineBresenham(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     x1 = Math.Clamp(x1, 0, screenWidth - 1);
     x2 = Math.Clamp(x2, 0, screenWidth - 1);
@@ -1250,7 +1564,7 @@ void DrawShallowLineBresenham(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawSteepLineBresenham(Color color, int x1, int x2, int y1, int y2)
+void DrawSteepLineBresenham(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     x1 = Math.Clamp(x1, 0, screenWidth - 1);
     x2 = Math.Clamp(x2, 0, screenWidth - 1);
@@ -1289,7 +1603,7 @@ void DrawSteepLineBresenham(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawLineNaive(Color color, int x1, int x2, int y1, int y2)
+void DrawLineNaive(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     if (x1 == x2)
     {
@@ -1343,7 +1657,7 @@ void DrawLineNaive(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawShallowLineNaive(Color color, int x1, int x2, int y1, int y2)
+void DrawShallowLineNaive(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     var dYdX = (float)(y2 - y1) / (x2 - x1);
 
@@ -1361,7 +1675,7 @@ void DrawShallowLineNaive(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawSteepLineNaive(Color color, int x1, int x2, int y1, int y2)
+void DrawSteepLineNaive(SimpleColor color, int x1, int x2, int y1, int y2)
 {
     var dXdY = (float)(x2 - x1) / (y2 - y1);
 
@@ -1379,7 +1693,7 @@ void DrawSteepLineNaive(Color color, int x1, int x2, int y1, int y2)
     }
 }
 
-void DrawHorizontalLine(Color color, int x1, int x2, int y)
+void DrawHorizontalLine(SimpleColor color, int x1, int x2, int y)
 {
     x1 = Math.Clamp(x1, 0, screenWidth - 1);
     x2 = Math.Clamp(x2, 0, screenWidth - 1);
@@ -1391,7 +1705,7 @@ void DrawHorizontalLine(Color color, int x1, int x2, int y)
     }
 }
 
-void DrawVerticalLine(Color color, int x, int y1, int y2)
+void DrawVerticalLine(SimpleColor color, int x, int y1, int y2)
 {
     y1 = Math.Clamp(y1, 0, screenHeight - 1);
     y2 = Math.Clamp(y2, 0, screenHeight - 1);
@@ -1408,7 +1722,7 @@ static float ToRadians(float angleInDegress)
     return MathF.PI / 180.0f * angleInDegress;
 }
 
-void PopulatePixel(Color color, int x, int y)
+void PopulatePixel(SimpleColor color, int x, int y)
 {
     //y = screenHeight - y;
 
